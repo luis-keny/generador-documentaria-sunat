@@ -6,7 +6,7 @@ import './index.css'
 
 import { Dashboard } from '@/layout/dashboard.tsx';
 import { Documentos } from '@/pages/dashboard/documentacion/documentos';
-import { TipoDocumento } from '@/pages/dashboard/documentacion/tipo-documento';
+// import { TipoDocumento } from '@/pages/dashboard/documentacion/tipo-documento';
 import { EmitirDocumento } from '@/pages/dashboard/documentacion/emitir-documento/emitir-documento';
 import { NotFound } from './pages/not-found';
 
@@ -18,8 +18,8 @@ createRoot(document.getElementById('root')!).render(
         <Route path="dashboard" element={<Dashboard />}>
           <Route index element={<Navigate to={'documentos'} replace />} />
           <Route path="documentos" element={<Documentos />} />
-          <Route path="documentos/nuevo" element={<TipoDocumento />} />
-          <Route path="documentos/nuevo/:tipo-documento" element={<EmitirDocumento />} />
+          {/* <Route path="documentos/nuevo" element={<TipoDocumento />} /> */}
+          <Route path="documentos/emitir" element={<EmitirDocumento />} />
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>

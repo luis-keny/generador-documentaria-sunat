@@ -21,7 +21,9 @@ export const Dashboard = () => {
   const urls = pathname.split("/").splice(2)
 
   const identifyUrl = (index: number) => {
-    return urls.slice(0, index + 1).join("/")
+    const length = urls.length
+    const stringUrl = pathname.split("/").splice(0, length - (index - 1)).join("/")
+    return stringUrl
   }
 
   return (

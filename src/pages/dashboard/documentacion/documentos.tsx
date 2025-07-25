@@ -18,6 +18,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Separator } from "@/components/ui/separator"
 import { toast } from "sonner"
 import { DocumentsService } from "@/services/documents"
+import { NavLink } from "react-router"
 
 interface Document {
   id: string
@@ -57,8 +58,8 @@ export const Documentos = () => {
   const [toDate, setToDate] = useState<Date>()
 
   const [filters, setFilters] = useState<FilterParams>({
-    personaId: "",
-    personaToken: "",
+    personaId: localStorage.getItem("personaId") || "",
+    personaToken: localStorage.getItem("personaToken") || "",
     limit: 50,
     skip: 0,
     order: "DESC",
@@ -88,6 +89,8 @@ export const Documentos = () => {
       })
       return
     }
+    localStorage.setItem("personaId", filters.personaId)
+    localStorage.setItem("personaToken", filters.personaToken)
 
     setLoading(true)
     try {
@@ -165,10 +168,12 @@ export const Documentos = () => {
           <p className="text-muted-foreground">Consulta y administra tus documentos electrónicos</p>
         </div>
         <div className="flex items-center space-x-2">
-          <Button onClick={fetchDocuments} variant="outline">
-            {loading ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <PlusIcon className="mr-2 h-4 w-4" />}
-            {loading ? "Cargando..." : "Emitir"}
-          </Button>
+          <NavLink to="/dashboard/documentos/emitir">
+            <Button variant="outline">
+                <PlusIcon className="mr-2 h-4 w-4" />
+                Emitir
+            </Button>
+          </NavLink>
           <Button onClick={fetchDocuments} disabled={loading}>
             {loading ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
             {loading ? "Cargando..." : "Buscar"}
@@ -447,11 +452,11 @@ export const Documentos = () => {
                             </Button>
                           )}
                           <Button size="sm" variant="outline" asChild>
-                              <a href={documentsSrv.urlPdfByDocument(doc.id, doc.fileName)} target="_blank" rel="noopener noreferrer">
-                                <Eye className="h-4 w-4 mr-1" />
-                                PDF
-                              </a>
-                            </Button>
+                            <a href={documentsSrv.urlPdfByDocument(doc.id, doc.fileName)} target="_blank" rel="noopener noreferrer">
+                              <Eye className="h-4 w-4 mr-1" />
+                              PDF
+                            </a>
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
