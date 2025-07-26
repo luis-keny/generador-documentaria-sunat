@@ -16,7 +16,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
-import type { GRTEDocumentBody } from "@/types/GRTE-document-body"
+// import type { GRTEDocumentBody } from "@/types/GRTE-document-body"
 
 interface Vehicle {
   placa: string
@@ -150,17 +150,18 @@ export default function GuiaRemisionForm() {
   })
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const updateFormData = (path: string, value: any) => {
+  const updateFormData = (path: string, value: unknown) => {
     setFormData((prev) => {
       const keys = path.split(".")
       const newData = { ...prev }
-      let current = newData
+      console.log(value)
+      // let current = newData
 
       for (let i = 0; i < keys.length - 1; i++) {
-        current = current[keys[i]] as FormData
+        // current = current[keys[i]]
       }
 
-      current[keys[keys.length - 1]] = value
+      // current[keys[keys.length - 1]] = value
       return newData
     })
   }
@@ -239,7 +240,7 @@ export default function GuiaRemisionForm() {
     }))
   }
 
-  const updateItem = (index: number, field: keyof DespatchLine, value: any) => {
+  const updateItem = (index: number, field: keyof DespatchLine, value: unknown) => {
     setFormData((prev) => ({
       ...prev,
       items: prev.items.map((item, i) => (i === index ? { ...item, [field]: value } : item)),
@@ -247,7 +248,8 @@ export default function GuiaRemisionForm() {
   }
 
   const generateJSON = () => {
-    const documentBody: GRTEDocumentBody = {
+    // GRTEDocumentBody
+    const documentBody = {
       "cbc:UBLVersionID": { _text: "2.1" },
       "cbc:CustomizationID": { _text: "2.0" },
       "cbc:ID": { _text: `${formData.serie}-${formData.correlativo.padStart(8, "0")}` },
