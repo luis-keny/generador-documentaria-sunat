@@ -12,11 +12,13 @@ export interface GuiaRowFlat {
   conductor: string | null;
   peso: number | null;
   unidadMedida: string | null;
-  items: {
-    cantidad: number | null;
-    unidad: string | null;
-    descripcion: string | null;
-  }[];
+  items: ItemConfig[];
+}
+
+export interface ItemConfig {
+  cantidad: number | null;
+  unidad: string | null;
+  descripcion: string | null;
 }
 
 export interface ConductorConfig {
