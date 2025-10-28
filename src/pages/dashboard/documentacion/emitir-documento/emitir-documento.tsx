@@ -1,38 +1,15 @@
-import { useState } from "react"
-// import { format } from "date-fns"
-import { Download, RefreshCw, LucideSave, DownloadIcon } from "lucide-react"
-// import { cn } from "@/lib/utils"
-
+import React, { useState } from "react"
+import { RefreshCw, LucideSave, DownloadIcon, ChevronUp, ChevronDown } from "lucide-react"
+import readXlsxFile from 'read-excel-file'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-// import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+// import { Badge } from "@/components/ui/badge"
 import { NavLink } from "react-router"
-// import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-// import { Calendar } from "@/components/ui/calendar"
-// import { Separator } from "@/components/ui/separator"
-// import { toast } from "sonner"
-// import { DocumentsService } from "@/services/documents"
-// import { NavLink } from "react-router"
-
-interface Document {
-  id: string
-  production: boolean
-  status: "PENDIENTE" | "EXCEPCION" | "ACEPTADO" | "RECHAZADO"
-  type: string
-  issueTime: number
-  responseTime: number
-  fileName: string
-  xml: string
-  cdr: string
-  faults: string[]
-  notes: string[]
-  personaId: string
-  reference: string
-}
+import { parseDataSheet } from "@/utils/recopilate-xlsx"
+import type { GuiaRowFlat } from "@/types/GRTE-data"
 
 interface FilterParams {
   personaId: string
@@ -41,8 +18,10 @@ interface FilterParams {
 }
 
 export const EmitirDocumento = () => {
-  const [documents] = useState<Document[]>([])
+  const [guiaFlat, setGuiaFlat] = useState<GuiaRowFlat[]>([])
+  const [expandedRow, setExpandedRow] = useState<number | null>(null);
   const [loading] = useState(false)
+  const [recopilating, isRecopilating] = useState(false)
 
   const [filters, setFilters] = useState<FilterParams>({
     personaId: localStorage.getItem("personaId") || "",
@@ -54,6 +33,35 @@ export const EmitirDocumento = () => {
     setFilters((prev) => ({ ...prev, [key]: value }))
   }
 
+  const handleRowClick = (index: number) => {
+    setExpandedRow(expandedRow === index ? null : index); // Alterna la fila expandida
+  };
+
+  const readExcel = ($event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = $event.target.files?.[0]
+    console.log(file)
+    if (!file) return
+    isRecopilating(true)
+    readXlsxFile(file, { sheet: 'data' })
+    .then((rows) => {
+        setGuiaFlat(parseDataSheet(rows))
+      })
+      .catch((error) => {
+        console.error('Error reading Excel file:', error)
+      })
+      .finally(() => {
+        isRecopilating(false)
+      })
+    
+    // readXlsxFile(file, { sheet: 'Configuración' })
+    //   .then((rows) => {
+    //     console.log(parseConfigSheet(rows))
+    //   })
+    //   .catch((error) => {
+    //     console.error('Error reading Excel file:', error)
+    //   })
+  }
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -62,7 +70,7 @@ export const EmitirDocumento = () => {
           <p className="text-muted-foreground">Solo podrás emitir el documento GRTE si cuentas con un usuario afiliado a dicha empresa</p>
         </div>
         <div className="flex items-center space-x-2">
-          <label 
+          <label
             className="border border-emerald-600 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-800 hover:border-emerald-800 cursor-pointer px-2 py-1 rounded-md flex items-center shadow-xs transition-all"
           >
             <svg  xmlns="http://www.w3.org/2000/svg"  width={24}  height={24}  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  strokeWidth={2}  strokeLinecap="round"  strokeLinejoin="round">
@@ -72,8 +80,8 @@ export const EmitirDocumento = () => {
               <path d="M10 12l4 5" />
               <path d="M10 17l4 -5" />
             </svg>
-            {loading ? "Recopilando..." : "Recopilar"}
-            <input type="file" className="hidden" accept=".xls,.xlsx" />
+            {recopilating ? "Recopilando..." : "Recopilar"}
+            <input type="file" className="hidden" accept=".xls,.xlsx" onChange={($event) => readExcel($event)} />
           </label>
           <NavLink to="https://docs.google.com/spreadsheets/d/17pb8RG3vgYYwAylvtirZ-L71zNkdo_UBcvreZKmNyc0/edit?usp=sharing" target="_blank" rel="noopener noreferrer">
             <Button variant="outline">
@@ -81,7 +89,7 @@ export const EmitirDocumento = () => {
               Plantilla
             </Button>
           </NavLink>
-          <Button disabled={loading}>
+          <Button disabled={loading || guiaFlat.length === 0}>
             {loading ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <LucideSave className="mr-2 h-4 w-4" />}
             {loading ? "Emitiendo..." : "Emitir documento"}
           </Button>
@@ -133,89 +141,99 @@ export const EmitirDocumento = () => {
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Datos recopilados</CardTitle>
-          <CardDescription>
-            {documents.length} dato{documents.length !== 1 ? "s" : ""} recopilado
-            {documents.length !== 1 ? "s" : ""}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <RefreshCw className="h-8 w-8 animate-spin" />
-              <span className="ml-2">Recopilando datos...</span>
-            </div>
-          ) : documents.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No se encontraron datos
-            </div>
-          ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Archivo</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Fecha Emisión</TableHead>
-                    <TableHead>Fecha Respuesta</TableHead>
-                    <TableHead>Ambiente</TableHead>
-                    <TableHead>Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {documents.map((doc, index) => (
-                    <TableRow key={index}>
-                      <TableCell className="font-medium">
-                        <div>
-                          <div className="font-semibold">{doc.fileName}</div>
-                          {doc.reference && <div className="text-sm text-muted-foreground">{doc.reference}</div>}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {/* <Badge className={statusColors[doc.status]}>{doc.status}</Badge> */}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">
-                          {/* {documentTypes.find((t) => t.value === doc.type)?.label || doc.type} */}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{doc.issueTime}</TableCell>
-                      <TableCell>{doc.responseTime}</TableCell>
-                      <TableCell>
-                        <Badge variant={doc.production ? "default" : "secondary"}>
-                          {doc.production ? "Producción" : "Pruebas"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex space-x-2">
-                          {doc.xml && (
-                            <Button size="sm" variant="outline" asChild>
-                              <a href={doc.xml} target="_blank" rel="noopener noreferrer">
-                                <Download className="h-4 w-4 mr-1" />
-                                XML
-                              </a>
-                            </Button>
-                          )}
-                          {doc.cdr && (
-                            <Button size="sm" variant="outline" asChild>
-                              <a href={doc.cdr} target="_blank" rel="noopener noreferrer">
-                                <Download className="h-4 w-4 mr-1" />
-                                CDR
-                              </a>
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+  <CardHeader>
+    <CardTitle>Datos Recopilados</CardTitle>
+    <CardDescription>
+      {guiaFlat.length} dato{guiaFlat.length !== 1 ? "s" : ""} recopilado
+    </CardDescription>
+  </CardHeader>
+  
+  <CardContent>
+    {recopilating ? (
+      <div className="flex items-center justify-center py-8">
+        <RefreshCw className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2 text-primary">Recopilando datos...</span>
+      </div>
+    ) : guiaFlat.length === 0 ? (
+      <div className="text-center py-8 text-muted-foreground">
+        No se encontraron datos
+      </div>
+    ) : (
+      <div className="overflow-x-auto rounded-md border bg-white shadow-md">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead/>
+              <TableHead>Fecha Traslado</TableHead>
+              <TableHead>Remitente</TableHead>
+              <TableHead>Destinatario</TableHead>
+              <TableHead>Placa</TableHead>
+              <TableHead>Conductor</TableHead>
+              <TableHead>Peso</TableHead>
+              <TableHead>Unidad Medida</TableHead>
+            </TableRow>
+          </TableHeader>
+
+          <TableBody>
+            {guiaFlat.map((guia, index) => (
+              <React.Fragment key={index}>
+                <TableRow className="hover:bg-gray-50">
+                  <TableCell>
+                    <Button 
+                        variant="link" 
+                        onClick={() => handleRowClick(index)} 
+                        className="text-indigo-500">
+                        {expandedRow === index ? (
+                          <ChevronUp className="h-4 w-4" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4" />
+                        )}
+                      </Button>
+                  </TableCell>
+                  <TableCell>{guia.fechaTraslado?.toLocaleDateString()}</TableCell>
+                  <TableCell>{guia.remitenteRazonSocial}</TableCell>
+                  <TableCell>{guia.destinatarioRazonSocial}</TableCell>
+                  <TableCell>{guia.placa}</TableCell>
+                  <TableCell>{guia.conductor}</TableCell>
+                  <TableCell>{guia.peso}</TableCell>
+                  <TableCell>{guia.unidadMedida}</TableCell>
+                </TableRow>
+                {expandedRow === index && (
+                <TableRow>
+                    <TableCell colSpan={8}>
+                      <div className="p-4 rounded-md">
+                        <h3 className="font-semibold text-xl text-gray-800 mb-4">Detalles de los Items:</h3>
+                        {guia.items.map((item, itemIndex) => (
+                          <div key={itemIndex} className="flex flex-col space-y-2 p-4 border-b border-gray-300 last:border-none">
+                            <div className="flex items-center space-x-4">
+                              <div className="w-1/3">
+                                <strong className="text-sm text-gray-600">Cantidad:</strong>
+                                <div className="text-gray-800">{item.cantidad}</div>
+                              </div>
+                              <div className="w-1/3">
+                                <strong className="text-sm text-gray-600">Unidad:</strong>
+                                <div className="text-gray-800">{item.unidad}</div>
+                              </div>
+                              <div className="w-1/3">
+                                <strong className="text-sm text-gray-600">Descripción:</strong>
+                                <div className="text-gray-800">{item.descripcion}</div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </TableCell>
+                </TableRow>
+                )}
+              </React.Fragment>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    )}
+  </CardContent>
+</Card>
+
     </div>
   )
 }
