@@ -1,4 +1,4 @@
-import type { ConfigRow, GuiaRowFlat } from "@/types/GRTE-data";
+import type { ConfigGroupedRow, ConfigRow, GuiaRowFlat, UbigeoRow } from "@/types/GRTE-data";
 import type { Row } from "read-excel-file";
 
 export function mapDataRowToGuia(row: Row): GuiaRowFlat {
@@ -96,10 +96,55 @@ export function mapConfigRow(row: Row): ConfigRow {
   };
 }
 
+function mapUbigeoRow(row: Row): UbigeoRow {
+  // Helper para convertir a string y limpiar
+  const str = (i: number) =>
+    (row[i] === null || row[i] === undefined) ? null : String(row[i]).trim() || null;
+
+  const ubicacionCompleta = str(0); // "amazonas, chachapoyas, chachapoyas"
+  const ubigeoId = str(1);          // "010101"
+
+  // Separamos la ubicación en sus 3 componentes
+  const parts = ubicacionCompleta 
+    ? ubicacionCompleta.split(',').map(s => s.trim()) 
+    : [];
+
+  return {
+    ubigeoId: ubigeoId,
+    ubicacionCompleta: ubicacionCompleta,
+    departamento: parts[0] || null,
+    provincia: parts[1] || null,
+    distrito: parts[2] || null,
+  };
+}
+
 export function parseDataSheet(rows: Row[]): GuiaRowFlat[] {
   return rows.slice(2).map(mapDataRowToGuia);
 }
 
-export function parseConfigSheet(rows: Row[]): ConfigRow[] {
-  return rows.slice(1).map(mapConfigRow);
+export function parseConfigSheet(rows: Row[]): ConfigGroupedRow {
+  const recopilated = rows.slice(1).map(mapConfigRow);
+  return groupConfigData(recopilated);
+}
+
+export function parseUbigeoSheet(rows: Row[]): UbigeoRow[] {
+  return rows.slice(1).map(mapUbigeoRow)
+    .filter(item => item.ubigeoId && item.ubicacionCompleta);
+}
+
+export function groupConfigData(configRows: ConfigRow[]): ConfigGroupedRow {
+  const groupedData: ConfigGroupedRow = {
+    conductores: [],
+    vehiculos: [],
+    remitentes: [],
+    tiendas: [],
+  };
+
+  return configRows.reduce((acc, currentRow) => {
+    acc.conductores.push(currentRow.conductor);
+    acc.vehiculos.push(currentRow.vehiculo);
+    acc.remitentes.push(currentRow.remitente);
+    acc.tiendas.push(currentRow.tienda);
+    return acc;
+  }, groupedData);
 }

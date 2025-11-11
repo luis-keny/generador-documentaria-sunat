@@ -51,3 +51,18 @@ export interface ConfigRow {
   remitente: RemitenteConfig;
   tienda: TiendaConfig;
 }
+
+export interface ConfigGroupedRow {
+  conductores: ConductorConfig[];
+  vehiculos: VehiculoConfig[];
+  remitentes: RemitenteConfig[];
+  tiendas: TiendaConfig[];
+}
+
+export interface UbigeoRow {
+  ubigeoId: string | null;
+  ubicacionCompleta: string | null;
+  departamento: string | null;
+  provincia: string | null;
+  distrito: string | null;
+}
