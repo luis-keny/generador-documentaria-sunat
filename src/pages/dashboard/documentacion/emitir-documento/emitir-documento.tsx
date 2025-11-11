@@ -1,15 +1,16 @@
 import React, { useState } from "react"
-import { RefreshCw, LucideSave, DownloadIcon, ChevronUp, ChevronDown } from "lucide-react"
+import { RefreshCw, DownloadIcon, ChevronUp, ChevronDown, LucideSave } from "lucide-react"
 import readXlsxFile from 'read-excel-file'
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 // import { Badge } from "@/components/ui/badge"
 import { NavLink } from "react-router"
-import { parseDataSheet } from "@/utils/recopilate-xlsx"
-import type { GuiaRowFlat } from "@/types/GRTE-data"
+import { parseConfigSheet, parseDataSheet, parseUbigeoSheet } from "@/utils/recopilate-xlsx"
+import type { ConfigGroupedRow, GuiaRowFlat, UbigeoRow } from "@/types/GRTE-data"
+import { generarGRTEDocumentBody } from "@/utils/transform-grte-body"
 
 interface FilterParams {
   personaId: string
@@ -19,6 +20,9 @@ interface FilterParams {
 
 export const EmitirDocumento = () => {
   const [guiaFlat, setGuiaFlat] = useState<GuiaRowFlat[]>([])
+  const [dataConfig, setDataConfig] = useState<ConfigGroupedRow|null>(null)
+  const [ubigeos, setUbigeos] = useState<UbigeoRow[]|null>(null)
+  
   const [expandedRow, setExpandedRow] = useState<number | null>(null);
   const [loading] = useState(false)
   const [recopilating, isRecopilating] = useState(false)
@@ -39,9 +43,10 @@ export const EmitirDocumento = () => {
 
   const readExcel = ($event: React.ChangeEvent<HTMLInputElement>) => {
     const file = $event.target.files?.[0]
-    console.log(file)
+
     if (!file) return
     isRecopilating(true)
+    
     readXlsxFile(file, { sheet: 'data' })
     .then((rows) => {
         setGuiaFlat(parseDataSheet(rows))
@@ -53,13 +58,34 @@ export const EmitirDocumento = () => {
         isRecopilating(false)
       })
     
-    // readXlsxFile(file, { sheet: 'Configuración' })
-    //   .then((rows) => {
-    //     console.log(parseConfigSheet(rows))
-    //   })
-    //   .catch((error) => {
-    //     console.error('Error reading Excel file:', error)
-    //   })
+    readXlsxFile(file, { sheet: 'Configuración' })
+      .then((rows) => {
+        setDataConfig(parseConfigSheet(rows))
+      })
+      .catch((error) => {
+        console.error('Error reading Excel file:', error)
+      })
+
+    readXlsxFile(file, { sheet: 'UBIGEO' })
+      .then((rows) => {
+        setUbigeos(parseUbigeoSheet(rows))
+      })
+      .catch((error) => {
+        console.error('Error reading Excel file:', error)
+      })
+  }
+
+  const emitirGRE = () => {
+    if (!dataConfig) return
+    if (!ubigeos) return
+    const bodyDocument = generarGRTEDocumentBody(
+      guiaFlat[0],  // primer registro de tu array
+      dataConfig,      // objeto con conductores, vehiculos, remitentes, tiendas
+      ubigeos,           // array de ubigeos
+      'T001',            // serie
+      1                  // correlativo
+    );
+    console.log(bodyDocument)
   }
 
   return (
@@ -70,9 +96,13 @@ export const EmitirDocumento = () => {
           <p className="text-muted-foreground">Solo podrás emitir el documento GRTE si cuentas con un usuario afiliado a dicha empresa</p>
         </div>
         <div className="flex items-center space-x-2">
-          <label
-            className="border border-emerald-600 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-800 hover:border-emerald-800 cursor-pointer px-2 py-1 rounded-md flex items-center shadow-xs transition-all"
-          >
+          <NavLink to="https://docs.google.com/spreadsheets/d/17pb8RG3vgYYwAylvtirZ-L71zNkdo_UBcvreZKmNyc0/edit?usp=sharing" target="_blank" rel="noopener noreferrer">
+            <Button variant="outline">
+              <DownloadIcon className="mr-2 h-4 w-4" />
+              Plantilla
+            </Button>
+          </NavLink>
+          <label className={buttonVariants({variant: "default",size: "default",})}>
             <svg  xmlns="http://www.w3.org/2000/svg"  width={24}  height={24}  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  strokeWidth={2}  strokeLinecap="round"  strokeLinejoin="round">
               <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
               <path d="M14 3v4a1 1 0 0 0 1 1h4" />
@@ -83,16 +113,6 @@ export const EmitirDocumento = () => {
             {recopilating ? "Recopilando..." : "Recopilar"}
             <input type="file" className="hidden" accept=".xls,.xlsx" onChange={($event) => readExcel($event)} />
           </label>
-          <NavLink to="https://docs.google.com/spreadsheets/d/17pb8RG3vgYYwAylvtirZ-L71zNkdo_UBcvreZKmNyc0/edit?usp=sharing" target="_blank" rel="noopener noreferrer">
-            <Button variant="outline">
-              <DownloadIcon className="mr-2 h-4 w-4" />
-              Plantilla
-            </Button>
-          </NavLink>
-          <Button disabled={loading || guiaFlat.length === 0}>
-            {loading ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <LucideSave className="mr-2 h-4 w-4" />}
-            {loading ? "Emitiendo..." : "Emitir documento"}
-          </Button>
         </div>
       </div>
 
@@ -144,7 +164,15 @@ export const EmitirDocumento = () => {
   <CardHeader>
     <CardTitle>Datos Recopilados</CardTitle>
     <CardDescription>
-      {guiaFlat.length} dato{guiaFlat.length !== 1 ? "s" : ""} recopilado
+      <div className="flex justify-between items-center relative w-full">
+        <span>{guiaFlat.length} dato{guiaFlat.length !== 1 ? "s" : ""} recopilado</span>
+        {
+          guiaFlat.length > 0 && <Button disabled={loading} className="absolute bottom-0 right-0">
+            {loading ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <LucideSave className="mr-2 h-4 w-4" />}
+            {loading ? "Emitiendo..." : "Emitir todos"}
+          </Button>
+        }
+      </div>
     </CardDescription>
   </CardHeader>
   
@@ -171,6 +199,7 @@ export const EmitirDocumento = () => {
               <TableHead>Conductor</TableHead>
               <TableHead>Peso</TableHead>
               <TableHead>Unidad Medida</TableHead>
+              <TableHead>Acciones</TableHead>
             </TableRow>
           </TableHeader>
 
@@ -197,6 +226,9 @@ export const EmitirDocumento = () => {
                   <TableCell>{guia.conductor}</TableCell>
                   <TableCell>{guia.peso}</TableCell>
                   <TableCell>{guia.unidadMedida}</TableCell>
+                  <TableCell>
+                    <Button onClick={emitirGRE}>Emitir</Button>
+                  </TableCell>
                 </TableRow>
                 {expandedRow === index && (
                 <TableRow>
